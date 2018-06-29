@@ -1,6 +1,6 @@
 # pyBuster
 
-A simple website path brute-forcer.
+A multi-target URL bruteforcer.
 
 Example usage:
 
