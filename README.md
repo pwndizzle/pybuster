@@ -1,6 +1,6 @@
 # pyBuster
 
-A multi-target URL bruteforcer.
+A multi-target URL bruteforcer. Python2 and Python3 compliant.
 
 Example usage:
 
