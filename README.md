@@ -2,9 +2,13 @@
 
 A multi-target URL bruteforcer. Python2 and Python3 compliant.
 
-Example usage:
+Scan a single target:
 
-`python pyBuster.py -u hosts.txt -w words.txt -v`
+`python pyBuster.py -u google.com -w words.txt -v`
+
+Scan multiple targets:
+
+`python pyBuster.py -ul hosts.txt -w words.txt -v`
 
 Select ports to scan:
 
@@ -26,22 +30,23 @@ www.test2.com
 Help:
 
 ```
-usage: pyBuster.py [-h] -u HOSTLIST -w WORDLIST [-p PORTLIST]
-                   [-th HOSTTHREADS] [-tw WORDTHREADS] [-v]
-
-pyBuster a multi-target URL bruteforcer
-
 optional arguments:
   -h, --help            show this help message and exit
-  -u HOSTLIST, --hostlist HOSTLIST
-                        File containing hosts to test
+  -u HOST, --host HOST  Single host to scan (default: None)
+  -ul HOSTLIST, --hostlist HOSTLIST
+                        File containing multiple hosts to scan (default: None)
   -w WORDLIST, --wordlist WORDLIST
-                        File containing words/paths to test
-  -p PORTLIST, --portlist PORTLIST
-                        Comma separated list of ports to test
+                        File containing words/paths to test (default: None)
+  -p PORTS, --ports PORTS
+                        Comma separated list of ports to scan (default:
+                        80,443)
+  -c CODES, --codes CODES
+                        Success HTTP codes comma separated (default: 200)
+  -r REDIRECT, --redirect REDIRECT
+                        Follow redirects (default: False)
   -th HOSTTHREADS, --hostthreads HOSTTHREADS
-                        Number of concurrent hosts
+                        Number of concurrent hosts (default: 10)
   -tw WORDTHREADS, --wordthreads WORDTHREADS
-                        Number of threads per host
-  -v, --verbose         Show more information
+                        Number of threads per host (default: 3)
+  -v, --verbose         Show more information (default: None)
 ```
