@@ -16,36 +16,43 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # Setup args
-parser = argparse.ArgumentParser(description='pyBuster a multi-target URL bruteforcer')
-parser.add_argument('-u','--hostlist', help='File containing hosts to test', required=True)
+parser = argparse.ArgumentParser(description='pyBuster a multi-target URL bruteforcer',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-u','--host', help='Single host to scan')
+parser.add_argument('-ul','--hostlist', help='File containing multiple hosts to scan')
 parser.add_argument('-w','--wordlist', help='File containing words/paths to test', required=True)
-parser.add_argument('-p','--portlist', help='Comma separated list of ports to test', default='80,443')
+parser.add_argument('-p','--ports', help='Comma separated list of ports to scan', default='80,443')
+parser.add_argument('-c','--codes', help='Success HTTP codes comma separated', default='200')
+parser.add_argument('-r','--redirect', help='Follow redirects', default=False)
 parser.add_argument('-th','--hostthreads', help='Number of concurrent hosts', default=10)
 parser.add_argument('-tw','--wordthreads', help='Number of threads per host', default=3)
 parser.add_argument('-v','--verbose', help='Show more information', action='count')
 args = vars(parser.parse_args())
 
-# Parse args
-host_file = args["hostlist"]
-host_list = []
-port_list = [int(x) for x in args["portlist"].split(",")]
-path_file = args["wordlist"]
-path_list = []
-host_threads = int(args["hostthreads"])
-word_threads = int(args["wordthreads"])
-verbose = args["verbose"]
-
-# Load data from file
+# Load hosts and words
 try:
-    with open(host_file) as file:
-        host_list = file.read().strip().split('\n')
-    with open(path_file) as file:
+    host_list = []
+    if args["host"]:
+        host_list.append(args["host"])
+    elif args["hostlist"]:
+        with open(args["hostlist"]) as file:
+            host_list = file.read().strip().split('\n')
+
+    path_list = []
+    with open(args["wordlist"]) as file:
         path_list = file.read().strip().split('\n')
     print ("[*] Hosts: " + str(len(host_list)) )
     print ("[*] Paths: " + str(len(path_list)) )
 except IOError:
     print ("[!] Error: Coudn't read input file")
     sys.exit(1)
+
+# Parse additional args
+ports = [int(x) for x in args["ports"].split(",")]
+codes = [int(x) for x in args["codes"].split(",")]
+redirect = bool(args["redirect"])
+host_threads = int(args["hostthreads"])
+word_threads = int(args["wordthreads"])
+verbose = args["verbose"]
 
 # Check if port is open
 def check_port(host,port):
@@ -72,9 +79,9 @@ def check_path(host,port,path):
         else:
             url = 'http://' + str(host) + ":" + str(port) + '/' + str(path)
 
-        response = requests.get(url, verify=False, timeout=2, allow_redirects=False)
+        response = requests.get(url, verify=False, timeout=2, allow_redirects=redirect)
 
-        if response.status_code == 200:
+        if response.status_code in codes:
             title = re.search('(?<=<title>).+?(?=</title>)', response.text, re.DOTALL)
             if title:
                 title = title.group().strip()
@@ -99,7 +106,7 @@ def host_worker(hostq):
     while True:
         host = hostq.get()
         open_ports = []
-        for port in port_list:
+        for port in ports:
             if check_port(host,port):
                 open_ports.append(port)
 
