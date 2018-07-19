@@ -16,14 +16,25 @@ Select ports to scan:
 
 Change the number of threads:
 
-`python pyBuster.py -u hosts.txt -w words.txt -v -th 10 -tw 15`
+`python pyBuster.py -u hosts.txt -w words.txt -v -th 20 -tw 2`
 
-Hosts and words file should be one entry per line:
+Hosts and words file should be one entry per line.
+
+Example host list:
 
 ```
 www.test1.com
 www.test2.com
 192.168.1.2
+192.168.2.0/24
+```
+
+Example word list:
+
+```
+backup.zip
+test.html
+login.php
 ```
 
 
