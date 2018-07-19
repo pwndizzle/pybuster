@@ -1,6 +1,9 @@
 #! /usr/bin/python
 
 import sys
+import struct
+import time
+import datetime
 import socket
 import requests
 import re
@@ -28,18 +31,42 @@ parser.add_argument('-tw','--wordthreads', help='Number of threads per host', de
 parser.add_argument('-v','--verbose', help='Show more information', action='count')
 args = vars(parser.parse_args())
 
+
+def convert_cidr(cidr):
+    (ip, mask) = cidr.split('/')
+    mask = int(mask)
+    host_bits = 32 - mask
+    i = struct.unpack('>I', socket.inet_aton(ip))[0] # note the endianness
+    start = (i >> host_bits) << host_bits # clear the host bits
+    end = start | ((1 << host_bits) - 1)
+
+    ip_list = []
+    for i in range(start, end):
+        ip_list.append(socket.inet_ntoa(struct.pack('>I',i)))
+    return ip_list
+
 # Load hosts and words
 try:
+    temp_host_list = []
     host_list = []
+
     if args["host"]:
-        host_list.append(args["host"])
+        temp_host_list.append(args["host"])
     elif args["hostlist"]:
         with open(args["hostlist"]) as file:
-            host_list = file.read().strip().split('\n')
+            temp_host_list = file.read().strip().split('\n')
+
+    for t in temp_host_list:
+        if "/" in t:
+            for ip in convert_cidr(t):
+                host_list.append(ip)
+        else:
+            host_list.append(t)
 
     path_list = []
     with open(args["wordlist"]) as file:
         path_list = file.read().strip().split('\n')
+    print (datetime.datetime.now())
     print ("[*] Hosts: " + str(len(host_list)) )
     print ("[*] Paths: " + str(len(path_list)) )
 except IOError:
@@ -57,27 +84,30 @@ verbose = args["verbose"]
 # Check if port is open
 def check_port(host,port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2)
+    s.settimeout(1)
     try:
         status = s.connect_ex((host, port))
         s.close()
         if status == 0:
             if verbose: print ("[*] Port open: " + str(host) + " - " + str(port))
-            return 1
+            return check_path(host,port,"test")
         else:
             if verbose: print ("[!] Error: Cannot reach " + str(host))
             return 0
     except socket.error:
         if verbose: print ("[!] Error: Cannot reach " + str(host))
         return 0
+        
+    
 
 # Check if path exists
 def check_path(host,port,path):
     try:
-        if port == 443 or port == 8443:
-            url = 'https://' + str(host) + ":" + str(port) + '/' + str(path)
+        url = str(host) + ":" + str(port) + '/' + str(path)
+        if "443" in str(port):
+            url = 'https://' + str(url)
         else:
-            url = 'http://' + str(host) + ":" + str(port) + '/' + str(path)
+            url = 'http://' + str(url)
 
         response = requests.get(url, verify=False, timeout=2, allow_redirects=redirect)
 
@@ -90,20 +120,24 @@ def check_path(host,port,path):
             print (str(response.status_code) + "," + str(len(response.content)) + "," + url + "," + title)
         elif verbose:
             print (str(response.status_code) + "," + str(len(response.content)) + "," + url)
+        return 1
 
     except Exception as e:
-        print ("[!] Error: Timeout or unexpected response from " + str(host) + ":" + str(port) + '/' + str(path) )
+        if verbose: print ("[!] Error: Timeout or unexpected response from " + str(host) + ":" + str(port) + '/' + str(path) )
+        return 0
 
 # Query a single path
 def path_worker(host,port,pathq):
-    while True:
+    while pathq.qsize():
         path = pathq.get()
         check_path(host,port,path)
         pathq.task_done()
 
+
 # Create threads for each host
 def host_worker(hostq):
-    while True:
+
+    while hostq.qsize():
         host = hostq.get()
         open_ports = []
         for port in ports:
@@ -111,35 +145,48 @@ def host_worker(hostq):
                 open_ports.append(port)
 
         for port in open_ports:
+
             pathq = Queue()
 
             for path in path_list:
                 pathq.put(path)
 
             for i in range(word_threads):
-                 t = Thread(target=path_worker,args=(host,port,pathq))
-                 t.daemon = True
-                 t.start()
+                t = Thread(target=path_worker,args=(host,port,pathq))
+                t.daemon = True
+                t.start()
 
             pathq.join()
-            print ("[*] Host complete: " + str(host) + ":" + str(port))
+        
+        if verbose: print ("[*] Host complete: " + str(host) + ":" + str(port))
 
         hostq.task_done()
+        
 
 def main():
 
-    hostq = Queue()
-    threads = []
-    for i in range(host_threads):
-         t = Thread(target=host_worker,args=(hostq,))
-         t.daemon = True
-         t.start()
-         threads.append(t)
+    try:
+        hostq = Queue()
+        threads = []
+        
+        for host in host_list:
+            hostq.put(host)
+        
+        for i in range(host_threads):
+             t = Thread(target=host_worker,args=(hostq,))
+             t.daemon = True
+             t.start()
+             threads.append(t)
 
-    for host in host_list:
-        hostq.put(host)
-
-    hostq.join()
+        while True:
+            print ("Complete: " + str(len(host_list) - hostq.qsize()) + "/" + str(len(host_list)))
+            i = 0
+            if all(t.isAlive() == False for t in threads):
+                break
+            time.sleep(3)
+        
+    except (KeyboardInterrupt, SystemExit):
+        print ('\n[!] Stopping scan.\n')
 
 
 main()
