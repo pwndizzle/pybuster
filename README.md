@@ -6,9 +6,9 @@ Scan a single target:
 
 `python pyBuster.py -u google.com -w words.txt -v`
 
-Scan multiple targets:
+Scan multiple targets (verbose flag removed as its quite noisy):
 
-`python pyBuster.py -ul hosts.txt -w words.txt -v`
+`python pyBuster.py -ul hosts.txt -w words.txt`
 
 Select ports to scan:
 
