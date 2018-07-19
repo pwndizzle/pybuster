@@ -38,7 +38,7 @@ def convert_cidr(cidr):
     host_bits = 32 - mask
     i = struct.unpack('>I', socket.inet_aton(ip))[0] # note the endianness
     start = (i >> host_bits) << host_bits # clear the host bits
-    end = start | ((1 << host_bits) - 1)
+    end = (start | ((1 << host_bits) - 1))+1
 
     ip_list = []
     for i in range(start, end):
