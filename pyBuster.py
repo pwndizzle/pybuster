@@ -57,7 +57,7 @@ try:
             temp_host_list = file.read().strip().split('\n')
 
     for t in temp_host_list:
-        if "/" in t:
+        if "/" in t and t.split("/")[1].isdigit():
             for ip in convert_cidr(t):
                 host_list.append(ip)
         else:
